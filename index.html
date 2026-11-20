@@ -501,7 +501,6 @@ function startLevel(){if(!modelsReady){modelsP.then(startLevel);return}
   G.ground=renderGround();build3D();
   menu.hidden=true;$('#hud').hidden=false;$('#upg').hidden=true;
   mini.style.height=Math.round(150*G.H/G.W)+'px';
-  toast('Stars mark objectives. Red on the minimap = heavily defended: earn upgrades first.',6);
   updatePartsBar();
 }
 function addPart(k,n,silent){const cur=P.parts[k]||0;const nl=Math.min(MAXLV,cur+n);P.parts[k]=nl;
@@ -730,7 +729,7 @@ function update(dt){
   // --- impacts
   for(const z of G.impacts){z.t+=dt;if(z.t>=z.fill){z.gone=1;explodeArea(z.x,z.y,z.r,z.dmg,z.team,z.label);if(G.over)return}}
   updateAir(dt);
-  for(const m of G.mines){if(m.dead)continue;const d=hyp(P.x-m.x,P.y-m.y);if(d<14+P.T.size*.7){mineBoom(m);if(G.over)return}else if(d<240){if(d<150)SFX.mine();if(!G.seen.mines){G.seen.mines=1;toast(`${WATCH.mines.one}! ${WATCH.mines.d}`,5)}}}
+  for(const m of G.mines){if(m.dead)continue;const d=hyp(P.x-m.x,P.y-m.y);if(d<14+P.T.size*.7){mineBoom(m);if(G.over)return}else if(d<240){if(d<150)SFX.mine();if(!G.seen.mines){G.seen.mines=1;0}}}
   G.impacts=G.impacts.filter(z=>!z.gone);
   // --- scrap
   for(const c of G.scrap){const dx=P.x-c.x,dy=P.y-c.y,d=hyp(dx,dy);
@@ -749,8 +748,8 @@ function update(dt){
   const th=[35,100];
   if(G.waveIdx<th.length&&G.alert>=th[G.waveIdx]){spawnWave(G.waveIdx===1?2:1);G.waveIdx++;toast(G.waveIdx===1?'ALERT: reinforcements incoming':'ALERT MAX: heavy reinforcements and artillery',3)}
   G.raidT+=dt;{let every=G.L.raid&&G.time>25?G.L.raid:0;if(G.alert>=45){const a=G.alert>=100?18:30;every=every?Math.min(every,a):a}
-    if(every&&G.raidT>=every){G.raidT=0;airRaid('bomber');if(!G.seen.air){G.seen.air=1;toast(`${WATCH.air.one}! ${WATCH.air.d}`,5)}}}
-  if(G.alert>=65){if(G.barrageT===0)toast('ALERT: artillery barrages started. Watch for red circles.',3);G.barrageT+=dt;const every=G.alert>=100?4.5:7;
+    if(every&&G.raidT>=every){G.raidT=0;airRaid('bomber');if(!G.seen.air){G.seen.air=1;0}}}
+  if(G.alert>=65){if(G.barrageT===0)toast('ALERT: artillery barrages started',3);G.barrageT+=dt;const every=G.alert>=100?4.5:7;
     if(G.barrageT>=every+0.001&&G.barrageT%every<dt){for(let i=0;i<3;i++)G.impacts.push({x:P.x+P.vx*1.2+rand(-160,160),y:P.y+P.vy*1.2+rand(-160,160),r:60,t:0,fill:1.8,team:'e',dmg:22})}}
   // --- fx
   G.fx.forEach(f=>f.t+=dt);G.fx=G.fx.filter(f=>f.t<f.max);G.pops.forEach(p=>p.t+=dt);G.pops=G.pops.filter(p=>p.t<1);
@@ -763,7 +762,7 @@ function spawnWave(mult){const types=G.wave();for(let w=0;w<mult;w++){let best=n
 function updateSupport(dt){
   const S=G.S,dS=hyp(P.x-S.x,P.y-S.y);G.radar=G.missions.some(m=>m.sup==='radar'&&!m.done);
   for(const m of G.missions){if(m.done||!m.sup)continue;const k=m.sup;m.st=(m.st||0)+dt;
-    if(dS<S.r+150&&!m.warned){m.warned=1;toast(`${SUP[k].on}. Destroy the source to stop it.`,4)}
+    if(dS<S.r+150&&!m.warned){m.warned=1;0}
     const sp={tanks:[28,4,'tank',1],cars:[18,4,'car',1],infantry:[12,20,'inf',4]}[k];
     if(sp&&m.st>=sp[0]){m.st=0;const alive=G.enemies.filter(e=>!e.dead&&e.from===m).length;
       if(alive<sp[1])for(let q=0;q<sp[3];q++){const e=mk(sp[2],m.src.x+rand(-60,60),m.src.y+rand(-60,60)),a=rand(0,PI*2),d=rand(100,400);
@@ -791,7 +790,7 @@ function updateEnemies(dt){
     if(!e.aware&&(d<Math.max(t.sight||0,e.sh&&G.radar?900:520)||(G.alert>=35&&d<900)))e.aware=true;
     if(!e.aware&&e.goHome){const hx=e.hx-e.x,hy=e.hy-e.y,hd=hyp(hx,hy);if(hd<40)e.goHome=false;else{e.a=e.ta=Math.atan2(hy,hx);e.x+=hx/hd*t.speed*dt;e.y+=hy/hd*t.speed*dt;e.wob+=dt*10}}
     if(!e.aware)continue;
-    if(WATCH[e.type]&&!G.seen[e.type]&&d<430){G.seen[e.type]=1;toast(`${WATCH[e.type].one}! ${WATCH[e.type].d}`,5)}
+    if(WATCH[e.type]&&!G.seen[e.type]&&d<430){G.seen[e.type]=1;0}
     const los=d<t.range+40&&!blocked(e.x,e.y,P.x,P.y);
     let mvx=0,mvy=0;
     switch(e.type){
@@ -1150,7 +1149,7 @@ function drawMini(){const r=mini.getBoundingClientRect(),w=Math.max(1,Math.round
   mctx.save();mctx.translate(P.x*sx,P.y*sy);mctx.rotate(P.a);mctx.fillStyle='#fff';mctx.strokeStyle='#000';mctx.lineWidth=1*u;mctx.beginPath();mctx.moveTo(6*u,0);mctx.lineTo(-4*u,-4*u);mctx.lineTo(-4*u,4*u);mctx.closePath();mctx.fill();mctx.stroke();mctx.restore()}
 function hud(){
   const n=G.pend+G.rare,u=$('#upg');u.hidden=!n||G.over;if(n)$('#upgn').textContent=G.rare?`${n} ready · rare`:`${n} ready`;
-  if(n>G.lastN&&!G.paused)toast('Upgrade ready. Tap UPGRADE (or E) when you have a moment.',3);G.lastN=n;
+  if(n>G.lastN&&!G.paused)0;G.lastN=n;
   if(n>G.lastN&&!G.paused){SFX.ready();HAP(20)}
   if(G.xpGlow){G.xpGlow=0;const x=$('#xpstrip');try{x.classList.remove('glow');void x.offsetWidth;x.classList.add('glow')}catch(e){}}
   $('#xpfill').style.width=(100*P.xp/P.need)+'%';$('#xptext').textContent=`NEXT UPGRADE · ${Math.floor(P.xp)} / ${P.need} SCRAP`;
