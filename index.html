@@ -781,6 +781,10 @@ function completeMission(m){m.done=true;SFX.mission();HAP([25,50,25]);G.slow=Mat
   if(sel.perk==='medic'){P.hp=Math.min(P.maxhp,P.hp+P.maxhp*.5);pop(P.x,P.y-52,'REPAIRED','#93c46b',1)}
   toast(`★ ${m.label}: ${m.reward==='rare'?'rare upgrade':'upgrade'} earned${m.sup?', and its support is cut off':''}.`,4);G.lastN=G.pend+G.rare;
 }
+// Keep leashed units inside their area without bouncing on the edge. Outward wishes become: stop (tanks), or drive along the edge (slide=1, cars).
+function leashWant(e,want,slide){if(!e.leash||want===null)return want;const hx=e.x-e.hx,hy=e.y-e.hy,hd=hyp(hx,hy);if(hd<e.leash*.9)return want;const ho=Math.atan2(hy,hx);
+  if(hd>e.leash+80)return ho+PI;if(Math.cos(adiff(ho,want))<=0)return want;
+  if(!slide)return null;const t1=ho+PI/2,t2=ho-PI/2,t=Math.abs(adiff(want,t1))<Math.abs(adiff(want,t2))?t1:t2;return hd>e.leash?t+(t===t1?.5:-.5):t}
 function updateEnemies(dt){
   for(const e of G.enemies){if(e.dead)continue;const t=e.t;e.cool-=dt*(e.sh&&G.radar?1.4:1);e.flash=Math.max(0,e.flash-dt);e.hitT=Math.max(0,(e.hitT||0)-dt);
     const dx=P.x-e.x,dy=P.y-e.y,d=hyp(dx,dy),toP=Math.atan2(dy,dx);
@@ -801,11 +805,11 @@ function updateEnemies(dt){
         if(e.burst>0){e.bt=(e.bt||0)-dt;if(e.bt<=0){e.burst--;e.bt=.11;SFX.mg(d);{const gp=gunPos(e,'mg',e.a,e.ta);shoot(gp.x,gp.y,e.ta+rand(-.08,.08),560,t.dmg,'e','bullet',{life:.6,z:gp.z})}}}
         else if(los&&d<t.range&&e.cool<=0){e.burst=6;e.cool=t.cool}break}
       case'car':{const ph=Math.atan2(e.y-P.y,e.x-P.x)+e.orbit*.7,tx=P.x+Math.cos(ph)*175,ty=P.y+Math.sin(ph)*175,ddx=tx-e.x,ddy=ty-e.y,dd=hyp(ddx,ddy)||1;
-        const want=Math.atan2(ddy,ddx);e.a+=clamp(adiff(e.a,want),-4*dt,4*dt);mvx=Math.cos(e.a);mvy=Math.sin(e.a);e.ta=toP;
+        const want=leashWant(e,Math.atan2(ddy,ddx),1);e.a+=clamp(adiff(e.a,want),-4*dt,4*dt);mvx=Math.cos(e.a);mvy=Math.sin(e.a);e.ta=toP;
         if(los&&d<t.range&&e.cool<=0){const gp=gunPos(e,'car',e.a,e.ta);shoot(gp.x,gp.y,toP+rand(-.1,.1),560,t.dmg,'e','bullet',{life:.55,z:gp.z});SFX.mg(d);e.cool=t.cool}break}
       case'mortar':{if(d<t.range&&e.cool<=0){G.impacts.push({x:P.x+P.vx*1.1+rand(-30,30),y:P.y+P.vy*1.1+rand(-30,30),r:55,t:0,fill:1.6,team:'e',dmg:t.dmg});SFX.mortar(d);e.cool=t.cool+rand(0,1)}break}
       case'tank':case'leader':case'atgun':{
-        if(e.type!=='atgun'){let want=null;if(d>330)want=toP;else if(d<200)want=toP+PI;if(e.leash&&hyp(e.x-e.hx,e.y-e.hy)>e.leash)want=Math.atan2(e.hy-e.y,e.hx-e.x);
+        if(e.type!=='atgun'){let want=null;if(d>330)want=toP;else if(d<200)want=toP+PI;want=leashWant(e,want);
           if(want!==null&&e.warn<=0){e.a+=clamp(adiff(e.a,want),-1.3*dt,1.3*dt);const al=Math.max(0,Math.cos(adiff(e.a,want)));mvx=Math.cos(e.a)*al;mvy=Math.sin(e.a)*al}}
         if(e.warn>0){e.warn-=dt;if(e.warn<=0){const gp=e.type==='atgun'?gunPos(e,'atgun',e.lockA,e.lockA):gunPos(e,e.type,e.a,e.lockA),bx=gp.x,by=gp.y;shoot(bx,by,e.lockA,e.type==='atgun'?760:640,t.dmg,'e','shell',{life:(t.range+80)/640,z:gp.z});G.fx.push({k:'muzzle',x:bx,y:by,z:gp.z,a:e.lockA,t:0,max:.1});SFX.efire(d);G.fx.push({k:'smoke',x:bx,y:by,z:gp.z,r:8,t:0,max:.6});e.cool=t.cool}}
         else{e.ta+=clamp(adiff(e.ta,toP),-t.tt*dt,t.tt*dt);if(los&&d<t.range&&e.cool<=0&&Math.abs(adiff(e.ta,toP))<.15){e.warn=t.warn;e.lockA=e.ta;SFX.lock(d)}}
@@ -814,7 +818,7 @@ function updateEnemies(dt){
         e.a+=clamp(adiff(e.a,want),-2.6*dt,2.6*dt);e.ta=e.a;mvx=Math.cos(e.a);mvy=Math.sin(e.a);
         if(d<350){e.bt=(e.bt||0)-dt;if(e.bt<=0){e.bt=.1+d/350*.4;SFX.beep(d)}}
         if(d<e.r+P.T.size+6){kill(e,'det');continue}break}
-      case'flame':{let want=null;if(d>95)want=toP;if(e.leash&&hyp(e.x-e.hx,e.y-e.hy)>e.leash)want=Math.atan2(e.hy-e.y,e.hx-e.x);
+      case'flame':{let want=null;if(d>95)want=toP;want=leashWant(e,want);
         if(want!==null){e.a+=clamp(adiff(e.a,want),-1.8*dt,1.8*dt);const al=Math.max(0,Math.cos(adiff(e.a,want)));mvx=Math.cos(e.a)*al;mvy=Math.sin(e.a)*al}
         const tr=(e.spray>0?1.1:t.tt)*dt;e.ta+=clamp(adiff(e.ta,toP),-tr,tr);
         if(e.ign>0){e.ign-=dt;if(e.ign<=0)e.spray=1.7}
@@ -833,7 +837,7 @@ function updateEnemies(dt){
         if(tg&&td<120){tg.hp=Math.min(tg.max,tg.hp+14*dt);e.heal=tg}break}
       case'barracks':{e.kids=e.kids.filter(k=>!k.dead);if(d<t.range&&e.cool<=0&&e.kids.length<5){const a=toP+rand(-.6,.6),k=mk('inf',e.x+Math.cos(a)*40,e.y+Math.sin(a)*40,a);k.aware=true;e.kids.push(k);G.enemies.push(k);e.cool=t.cool}break}
     }
-    if(e.leash&&e.type!=='tank'&&e.type!=='leader'&&e.type!=='flame'&&e.type!=='bombcar'&&(mvx||mvy)&&hyp(e.x-e.hx,e.y-e.hy)>e.leash){const a=Math.atan2(e.hy-e.y,e.hx-e.x);mvx=Math.cos(a);mvy=Math.sin(a)}
+    if(e.leash&&e.type!=='tank'&&e.type!=='leader'&&e.type!=='flame'&&e.type!=='bombcar'&&e.type!=='car'&&(mvx||mvy)){const hx=e.x-e.hx,hy=e.y-e.hy,hd=hyp(hx,hy);if(hd>e.leash-4){const nx=hx/hd,ny=hy/hd,o=mvx*nx+mvy*ny;if(o>0){mvx-=nx*o;mvy-=ny*o;if(hyp(mvx,mvy)<.35)mvx=mvy=0}}}
     if(mvx||mvy){e.x+=mvx*t.speed*dt;e.y+=mvy*t.speed*dt;e.wob+=dt*10}
     for(const o of G.rocks){const ox=e.x-o.x,oy=e.y-o.y,od=hyp(ox,oy),m=o.r+e.r;if(od<m&&od>0){e.x=o.x+ox/od*m;e.y=o.y+oy/od*m}}
     if(e.t.speed)for(const o of G.huts){if(o.dead)continue;const ox=e.x-o.x,oy=e.y-o.y,od=hyp(ox,oy),m=o.r*.9+e.r;if(od<m&&od>0){e.x=o.x+ox/od*m;e.y=o.y+oy/od*m}}
