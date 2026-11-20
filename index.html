@@ -91,6 +91,24 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .howto{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;display:grid;gap:4px}
 .howto b{color:var(--fg)}
 
+.mwrap{max-width:560px;gap:14px;padding-bottom:20px;min-height:100%;align-content:start}
+.mwrap .deploy{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}
+.deploy[disabled]{opacity:.5;cursor:not-allowed}
+.gear{background:var(--panel);border:1px solid var(--line);border-radius:6px;width:42px;height:42px;font-size:22px;line-height:1}
+.tshow{gap:12px}
+.mwrap .lvl{gap:10px;padding:12px}.mwrap .lname{font-size:clamp(22px,6vw,30px)}.mwrap .goals{gap:8px}
+.mwrap .goal{font-size:16px}.mwrap .goal.main{font-size:22px;padding-top:8px}.mwrap .goal small{font-size:12px}
+.thead{display:flex;align-items:center;gap:10px}
+.tvbox{position:relative;height:min(42vh,340px);margin:0 -14px;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 60%,#3a4430 0%,transparent 70%)}
+.tview{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
+.tvl{color:var(--muted);font-size:13px}
+.tlock{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:700;color:var(--ink);background:var(--muted);padding:3px 10px;border-radius:3px;text-transform:uppercase;letter-spacing:.06em;z-index:1}
+.dots{display:flex;gap:6px;justify-content:center}.dots i{width:8px;height:8px;border-radius:50%;background:#5d6850}.dots i.on{background:var(--accent)}
+.ups{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.smodal{position:fixed;inset:0;z-index:40;background:rgba(12,14,9,.82);display:grid;place-items:center;padding:16px}
+.sbox{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:14px;animation:rise .2s ease-out}
+.sbox h2{margin:0;font-family:var(--display);font-weight:400;font-size:24px}
+.buy.danger{border-color:var(--enemy);color:var(--enemy)}
 /* ---------- HUD ---------- */
 #hud{position:absolute;inset:0;pointer-events:none;z-index:5}
 #xpstrip{position:absolute;top:0;left:0;right:0;padding-top:env(safe-area-inset-top,0px);background:rgba(20,23,15,.88);border-bottom:1px solid var(--line)}
@@ -356,71 +374,89 @@ const sel={level:ORDER.find(k=>!(meta.stars[k]||0))||ORDER[ORDER.length-1],tank:
 const menu=$('#menu');
 function barsHTML(obj,cls){return `<div class="bars">${Object.entries(obj).map(([k,v])=>`<span>${k}</span><div class="bar"><i class="${cls(v)}" style="width:${v}%"></i></div>`).join('')}</div>`}
 function unlockedParts(){return Object.keys(PARTS)} // blueprints hidden for now: every part is in the pick pool
+// ---- tank showcase: one tank at a time, live 3D preview ----
+const TK=Object.keys(TANKS);let setOpen=false,resetArm=false;
+const tv={cv:null,R:null,scene:null,cam:null,obj:null,k:null,rot:.6};
+function tvInit(){if(tv.R||!modelsReady)return;
+  tv.cv=document.createElement('canvas');tv.cv.className='tview';
+  tv.R=new THREE.WebGLRenderer({canvas:tv.cv,antialias:true,alpha:true});tv.R.outputColorSpace=THREE.SRGBColorSpace;tv.R.shadowMap.enabled=true;tv.R.shadowMap.type=THREE.PCFSoftShadowMap;
+  tv.scene=new THREE.Scene();tv.cam=new THREE.PerspectiveCamera(26,1,1,2000);
+  tv.scene.add(new THREE.HemisphereLight(0xfff4dc,0x3a4030,1.4));
+  const s=new THREE.DirectionalLight(0xfff0d0,2.2);s.position.set(-40,90,-50);s.castShadow=true;s.shadow.mapSize.set(1024,1024);
+  Object.assign(s.shadow.camera,{left:-60,right:60,top:60,bottom:-60,near:1,far:300});s.shadow.normalBias=.5;tv.scene.add(s);
+  const fl=new THREE.Mesh(new THREE.CircleGeometry(48,48),new THREE.ShadowMaterial({opacity:.45}));fl.rotation.x=-PI/2;fl.receiveShadow=true;tv.scene.add(fl);
+  let sx=null;tv.cv.addEventListener('pointerdown',e=>{sx=e.clientX});
+  tv.cv.addEventListener('pointerup',e=>{if(sx===null)return;const dx=e.clientX-sx;sx=null;if(Math.abs(dx)>40)tankStep(dx<0?1:-1)});
+  (function loop(){requestAnimationFrame(loop);if(menu.hidden||!tv.cv.isConnected)return;
+    const w=tv.cv.clientWidth,h=tv.cv.clientHeight,d=Math.min(2,devicePixelRatio||1);if(!w||!h)return;
+    if(tv.cv.width!==Math.round(w*d)||tv.cv.height!==Math.round(h*d)){tv.R.setPixelRatio(d);tv.R.setSize(w,h,false);tv.cam.aspect=w/h;tv.cam.updateProjectionMatrix()}
+    if(tv.k!==sel.tank){if(tv.obj){tv.scene.remove(tv.obj);tv.obj.userData.mats.forEach(m=>m.dispose())}tv.k=sel.tank;tv.obj=inst(sel.tank);tv.scene.add(tv.obj);
+      const z=MZ[sel.tank],r=Math.max(z.L,z.W)*.62,dist=r/Math.sin(13*PI/180)/Math.min(1,tv.cam.aspect*.9);
+      tv.cam.position.set(0,dist*.62,dist*.79);tv.cam.lookAt(0,z.h*.35,0);tv.rot=.6}
+    tv.rot+=.006;const own=!!meta.owned[sel.tank];
+    tv.obj.rotation.y=tv.rot;const t=tv.obj.userData.tur;if(t)t.rotation.y=Math.sin(performance.now()/1400)*.5;
+    for(const m of tv.obj.userData.mats)m.color.setScalar(own?1:.35);
+    tv.R.render(tv.scene,tv.cam)})()}
+function tankStep(d){const i=(TK.indexOf(sel.tank)+d+TK.length)%TK.length;sel.tank=TK[i];SFX.click();renderMenu()}
 function renderMenu(){
   if(!isOpen(sel.level))sel.level=ORDER[0];
-  if(!meta.owned[sel.tank])sel.tank='scout';
-  const L=LEVELS[sel.level];
-  menu.innerHTML=`<div class="wrap">
-  <div class="top"><div class="brand">Tank Roguelite<small>Prototype · briefing room</small></div><div class="opts">${optBtns()}<div class="gold" title="Gold carries over between levels">${meta.gold} gold</div></div></div>
-
-  <section class="step"><h2><span>1</span>Next mission</h2>
-  ${(()=>{const n=ORDER.indexOf(sel.level),pv=ORDER[n-1],nx=ORDER[n+1],st=meta.stars[sel.level]||0;return `<div class="card sel lvl">
+  const L=LEVELS[sel.level],k=sel.tank,t=TANKS[k],g=meta.garage[k],own=!!meta.owned[k],hc=HULL_COST[g.hull],ec=ENG_COST[g.engine];
+  const n=ORDER.indexOf(sel.level),pv=ORDER[n-1],nx=ORDER[n+1],st=meta.stars[sel.level]||0;
+  menu.innerHTML=`<div class="wrap mwrap">
+  <div class="top"><div class="brand">Tank Roguelite</div><div class="opts"><div class="gold">${meta.gold} gold</div><button class="gear" id="setbtn" aria-label="Settings">⚙</button></div></div>
+  <div class="card sel lvl">
     <div class="lhead">
       <button class="lnav" data-level="${pv||''}" ${pv?'':'disabled'} aria-label="Previous level">‹</button>
       <div class="lname"><small>Level ${n+1} of ${ORDER.length} · par ${Math.floor(L.par/60)}:${String(L.par%60).padStart(2,'0')}${st?` · <span class="stars">${'★'.repeat(st)}${'☆'.repeat(3-st)}</span>`:''}</small>${L.name}</div>
       <button class="lnav" data-level="${nx&&isOpen(nx)?nx:''}" ${nx&&isOpen(nx)?'':'disabled'} aria-label="Next level">›</button>
     </div>
-    <div class="goals">${L.obj.map((o,i)=>`<div class="goal ${i===2?'main':''}"><span class="st" style="color:${MCOL[i]}">★</span><div>${o.label}${i<2&&o.sup?`<small>While it stands, it ${SUP[o.sup].d}.</small>`:''}${i<2?`<small class="rw">${o.reward==='rare'?'Rare upgrade':'Upgrade'}</small>`:''}</div></div>`).join('')}</div>
+    <div class="goals">${L.obj.map((o,i)=>`<div class="goal ${i===2?'main':''}"><span class="st" style="color:${MCOL[i]}">★</span><div>${o.label}${i<2&&o.sup?`<small>While it stands, it ${SUP[o.sup].d}.</small>`:''}</div></div>`).join('')}</div>
     ${barsHTML(L.threats,v=>v>=60?'hi':'')}
-  </div>`})()}
-  </section>
-
-  <section class="step"><h2><span>2</span>Your tank</h2>
-  <div class="grid3">${Object.entries(TANKS).map(([k,t])=>{const g=meta.garage[k],own=meta.owned[k];return `
-    <button class="card ${sel.tank===k?'sel':''}" data-tank="${k}" ${own?'':'disabled'}>
-      <h3>${t.name}${own?'':`<span class="lock">${t.price} gold in garage</span>`}</h3>
-      <div class="sub">${t.tag}</div>
-      ${barsHTML(t.bars,()=> 'me')}
-    </button>`}).join('')}</div>
-  </section>
-
-  <button class="deploy" id="deploy">Deploy<small>${TANKS[sel.tank].name} → ${L.name}</small></button>
-
-  <section class="step"><h2><span>3</span>Garage</h2>
-  <p class="hint">Gold from missions buys new tanks and small permanent upgrades.</p>
-  <div class="garage">
-    ${Object.entries(TANKS).map(([k,t])=>{const g=meta.garage[k];const hc=HULL_COST[g.hull],ec=ENG_COST[g.engine];if(!meta.owned[k])return `<div class="card"><h3>${t.name}</h3><div class="sub">${t.tag}</div>
-      <div class="grow"><span>Buy this tank</span><button class="buy" data-buy="tank:${k}" ${meta.gold>=t.price?'':'disabled'}>${t.price} gold</button></div></div>`;return `<div class="card">
-      <h3>${t.name}</h3>
+  </div>
+  <div class="card tshow">
+    <div class="thead">
+      <button class="lnav" data-tnav="-1" aria-label="Previous tank">‹</button>
+      <div class="lname"><small>${t.tag}</small>${t.name}</div>
+      <button class="lnav" data-tnav="1" aria-label="Next tank">›</button>
+    </div>
+    <div class="tvbox" id="tvbox">${modelsReady?'':'<span class="tvl">Loading…</span>'}${own?'':`<span class="tlock">Locked · ${t.price} gold</span>`}</div>
+    <div class="dots">${TK.map(x=>`<i class="${x===k?'on':''}"></i>`).join('')}</div>
+    ${barsHTML(t.bars,()=> 'me')}
+    ${own?`<div class="ups">
       <div class="grow"><span>Hull +10% HP <span class="pips">${'●'.repeat(g.hull)}${'○'.repeat(3-g.hull)}</span></span><button class="buy" data-buy="hull:${k}" ${hc&&meta.gold>=hc?'':'disabled'}>${hc?hc+' gold':'Max'}</button></div>
       <div class="grow"><span>Engine +6% speed <span class="pips">${'●'.repeat(g.engine)}${'○'.repeat(3-g.engine)}</span></span><button class="buy" data-buy="eng:${k}" ${ec&&meta.gold>=ec?'':'disabled'}>${ec?ec+' gold':'Max'}</button></div>
-    </div>`}).join('')}
+    </div>`:''}
   </div>
-  <div class="howto">
-    <div><b>Drive:</b> drag anywhere (touch or mouse) or use WASD / arrows. The gun fires by itself.</div>
-    <div><b>Armor:</b> the tank always drives forward. Its front takes the least damage and can ricochet shells, so turn to face threats.</div>
-    <div><b>Warnings:</b> red line = tank or AT gun about to fire. Flash = AT rocket. Red circle = shell landing. Red lane = bombers. Big dashed circle = rocket salvo. High Alert brings bombers on every level.</div>
-    <div><b>Objectives</b> are stars: 1 (cyan), 2 (pink) and the main goal (gold). Everything is open, but defenses get heavier toward the main goal (red on the minimap). Objectives 1 and 2 earn the upgrades you need for it.</div><div><b>Upgrades</b> wait in the UPGRADE button until you tap it.</div>
-    <div class="opts"><button class="buy" id="resetmeta">Reset progress</button>${meta.dev?'':'<button class="buy" id="unlockall">Prototype: unlock all levels</button>'}</div>
+  ${own?`<button class="deploy" id="deploy">Deploy<small>${t.name} → ${L.name}</small></button>`
+       :`<button class="deploy" data-buy="tank:${k}" ${meta.gold>=t.price?'':'disabled'}>Buy ${t.name}<small>${t.price} gold${meta.gold>=t.price?'':` · you have ${meta.gold}`}</small></button>`}
   </div>
-  </section></div>`;
+  ${setOpen?`<div class="smodal" id="smodal"><div class="sbox">
+    <h2>Settings</h2>
+    <div class="grow"><span>Sound</span><button class="buy" data-opt="snd">${opts.snd?'On':'Off'}</button></div>
+    <div class="grow"><span>Vibration</span><button class="buy" data-opt="hap">${opts.hap?'On':'Off'}</button></div>
+    ${meta.dev?'':'<div class="grow"><span>Unlock all levels</span><button class="buy" id="unlockall">Unlock</button></div>'}
+    <div class="grow"><span>Reset progress</span><button class="buy danger" id="resetmeta">${resetArm?'Tap to confirm':'Reset'}</button></div>
+    <button class="btn pri" id="setclose">Done</button>
+  </div></div>`:''}`;
+  tvInit();if(tv.cv){const b=$('#tvbox');b.prepend(tv.cv)}
 }
 menu.addEventListener('click',e=>{
+  if(e.target.id==='smodal'){setOpen=false;resetArm=false;renderMenu();return}
   const b=e.target.closest('button');if(!b||b.disabled)return;menu.classList.remove('enter');
-  if(b.id!=='deploy'&&!b.dataset.opt)SFX.click();
+  if(b.id!=='deploy'&&!b.dataset.opt&&!b.dataset.tnav)SFX.click();
+  if(b.id!=='resetmeta')resetArm=false;
   if(b.dataset.level!==undefined){if(b.dataset.level)sel.level=b.dataset.level}
-  else if(b.dataset.tank)sel.tank=b.dataset.tank;
-  else if(b.dataset.part)sel.part=b.dataset.part;
-  else if(b.dataset.perk)sel.perk=b.dataset.perk;
+  else if(b.dataset.tnav){tankStep(+b.dataset.tnav);return}
   else if(b.dataset.buy){const[t,k]=b.dataset.buy.split(':');
     if(t==='hull'){const c=HULL_COST[meta.garage[k].hull];if(c&&meta.gold>=c){meta.gold-=c;meta.garage[k].hull++}}
     if(t==='eng'){const c=ENG_COST[meta.garage[k].engine];if(c&&meta.gold>=c){meta.gold-=c;meta.garage[k].engine++}}
     if(t==='tank'&&!meta.owned[k]&&meta.gold>=TANKS[k].price){meta.gold-=TANKS[k].price;meta.owned[k]=1;sel.tank=k}
-    if(t==='bp'&&!meta.bp[k]&&meta.gold>=BP_COST){meta.gold-=BP_COST;meta.bp[k]=1}
-    if(t)HAP(15);save();}
+    HAP(15);save()}
   else if(b.dataset.opt){toggleOpt(b.dataset.opt)}
-  else if(b.id==='deploy'){SFX.init();SFX.deploy();HAP(20);startLevel();return}
-  else if(b.id==='resetmeta'){meta=JSON.parse(JSON.stringify(DEF));save()}
+  else if(b.id==='deploy'){if(!meta.owned[sel.tank])return;SFX.init();SFX.deploy();HAP(20);startLevel();return}
+  else if(b.id==='setbtn')setOpen=true;
+  else if(b.id==='setclose')setOpen=false;
+  else if(b.id==='resetmeta'){if(!resetArm){resetArm=true}else{resetArm=false;meta=JSON.parse(JSON.stringify(DEF));sel.tank='scout';save()}}
   else if(b.id==='unlockall'){meta.dev=1;save()}
   const y=menu.scrollTop;renderMenu();menu.scrollTop=y;
 });
@@ -1163,6 +1199,6 @@ function frame(now){const dt=Math.min(.033,(now-last)/1000);last=now;
   if(G&&!G.paused&&!G.over){let d2=dt;if(G.slow>0){G.slow-=dt;d2*=.3}update(d2)}else SFX.engine(false);
   draw();if(G){hud();drawMini()}
   requestAnimationFrame(frame)}
-menu.classList.add('enter');renderMenu();requestAnimationFrame(frame);
+menu.classList.add('enter');renderMenu();modelsP.then(()=>{if(!menu.hidden)renderMenu()});requestAnimationFrame(frame);
 })();
 </script>
