@@ -231,7 +231,7 @@ const SUP={
 };
 const MCOL=['#5ec8e8','#e58ad8','#f2c14e'];
 const WATCH={
-  bombcar:{n:'Bomb trucks',one:'Bomb truck',d:'Race at you and explode. Shoot them early. Crushing one sets it off.'},
+  bombcar:{n:'Bomb trucks',one:'Bomb truck',d:'Race at you and explode. Shoot them early or put a hut or rock between you. Crushing one sets it off.'},
   flame:{n:'Flame tanks',one:'Flame tank',d:'Burn through any armor up close. Keep your distance.'},
   rocket:{n:'Rocket trucks',one:'Rocket truck',d:'Fire a salvo over a wide circle from far away. Leave the circle, then hunt the truck.'},
   medic:{n:'Repair trucks',one:'Repair truck',d:'Fix nearby armor and run from you. Kill them first.'},
@@ -259,7 +259,7 @@ const ET={
   radar:{name:'Radar',hp:140,r:22,speed:0,range:0,cool:99,crush:9,scrap:8,armored:1,bld:1},
   depot:{name:'Depot',hp:180,r:30,speed:0,range:0,cool:99,crush:9,scrap:10,armored:1,bld:1},
   hq:{name:'HQ',hp:340,r:40,speed:0,range:0,cool:99,crush:9,scrap:15,armored:1,bld:1},
-  bombcar:{name:'Bomb truck',hp:28,r:12,speed:200,range:0,cool:99,dmg:40,crush:1,scrap:4,soft:1},
+  bombcar:{name:'Bomb truck',hp:28,r:12,speed:150,range:0,cool:99,dmg:40,crush:1,scrap:4,soft:1},
   flame:{name:'Flame tank',hp:170,r:19,speed:72,range:150,cool:3,warn:.5,dmg:24,crush:9,scrap:12,armored:1,tt:2.2},
   rocket:{name:'Rocket truck',hp:60,r:15,speed:75,range:780,cool:11,dmg:15,crush:3,scrap:8,soft:1,sight:820},
   medic:{name:'Repair truck',hp:55,r:14,speed:100,range:0,cool:99,crush:3,scrap:6,soft:1},
@@ -602,7 +602,7 @@ const optBtns=()=>`<button class="buy" data-opt="snd">Sound ${opts.snd?'on':'off
 function ouch(dmg,ms){G.hurt=Math.min(1,(G.hurt||0)+dmg/30);P.ghostT=.45;if(ms)HAP(ms)}
 
 // ================= combat helpers =================
-function blocked(x1,y1,x2,y2){for(const o of G.rocks)if(segCirc(x1,y1,x2,y2,o.x,o.y,o.r*.85))return true;for(const h of G.huts)if(!h.dead&&segCirc(x1,y1,x2,y2,h.x,h.y,h.r*.8))return true;return false}
+function blocked(x1,y1,x2,y2){for(const o of G.rocks)if(segCirc(x1,y1,x2,y2,o.x,o.y,o.r*.9))return true;for(const h of G.huts)if(!h.dead&&segCirc(x1,y1,x2,y2,h.x,h.y,h.r*.95))return true;return false}
 function pop(x,y,text,col='#ebe8d5',big){G.pops.push({x,y,text,col,t:0,big})}
 function boom(x,y,r,col){G.fx.push({k:'boom',x,y,r,t:0,max:.45,col:col||'#f3b14a'})}
 function spark(x,y){G.fx.push({k:'spark',x,y,t:0,max:.2})}
@@ -644,7 +644,7 @@ function hitPlayer(p){
 function explodeArea(x,y,r,dmg,team,label){boom(x,y,r,team==='e'?'#f08a4a':'#f3c24a');G.shake=Math.max(G.shake,team==='e'?6:3);SFX.boom(hyp(P.x-x,P.y-y),r>=60);
   for(let i=0;i<2;i++)G.fx.push({k:'smoke',x:x+rand(-r/3,r/3),y:y+rand(-r/3,r/3),r:r*.45,t:0,max:rand(.8,1.3)});
   for(const m of G.mines)if(!m.dead&&hyp(m.x-x,m.y-y)<r+10)mineBoom(m);
-  if(team==='e'){if(hyp(P.x-x,P.y-y)<r+P.T.size*.6){ouch(dmg*.85,30);P.hp-=dmg*.85;P.flash=.12;pop(P.x,P.y-52,label||'SHELLED','#d4613f');if(P.hp<=0)endLevel(false)}}
+  if(team==='e'){if(hyp(P.x-x,P.y-y)<r+P.T.size*.6&&!(hyp(P.x-x,P.y-y)>r*.35&&blocked(x,y,P.x,P.y))){ouch(dmg*.85,30);P.hp-=dmg*.85;P.flash=.12;pop(P.x,P.y-52,label||'SHELLED','#d4613f');if(P.hp<=0)endLevel(false)}}
   else for(const e of G.enemies)if(!e.dead&&hyp(e.x-x,e.y-y)<r+e.r)damageEnemy(e,dmg,x,y,null);
   for(const h of G.huts)if(!h.dead&&hyp(h.x-x,h.y-y)<r+h.r){h.hp-=dmg;if(h.hp<=0)destroyHut(h)}
   for(const f of G.fences)if(!f.dead&&hyp(f.x-x,f.y-y)<r)f.dead=true;
@@ -718,8 +718,8 @@ function update(dt){
   updateEnemies(dt);
   // --- projectiles
   for(const p of G.proj){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0){p.gone=1;continue}
-    for(const o of G.rocks)if(hyp(p.x-o.x,p.y-o.y)<o.r*.9){p.gone=1;spark(p.x,p.y);break}if(p.gone)continue;
-    for(const h of G.huts)if(!h.dead&&hyp(p.x-h.x,p.y-h.y)<h.r*.8){p.gone=1;h.hp-=p.kind==='bullet'?1:p.dmg;if(h.hp<=0)destroyHut(h);else spark(p.x,p.y);break}if(p.gone)continue;
+    for(const o of G.rocks)if(hyp(p.x-o.x,p.y-o.y)<o.r*.95){p.gone=1;spark(p.x,p.y);break}if(p.gone)continue;
+    for(const h of G.huts)if(!h.dead&&hyp(p.x-h.x,p.y-h.y)<h.r*.95){p.gone=1;h.hp-=p.kind==='bullet'?1:p.dmg;if(h.hp<=0)destroyHut(h);else spark(p.x,p.y);break}if(p.gone)continue;
     if(p.team==='e'){if(hyp(p.x-P.x,p.y-P.y)<P.T.size){p.gone=1;hitPlayer(p)}}
     else for(const e of G.enemies){if(e.dead)continue;if(hyp(p.x-e.x,p.y-e.y)<e.r+3){p.gone=1;
       if(p.kind==='shell'){damageEnemy(e,p.dmg,p.x-p.vx*.05,p.y-p.vy*.05,p);SFX.thunk();boom(p.x,p.y,10,'#f3c24a');
@@ -836,6 +836,7 @@ function updateEnemies(dt){
     if(e.leash&&e.type!=='tank'&&e.type!=='leader'&&e.type!=='flame'&&e.type!=='bombcar'&&(mvx||mvy)&&hyp(e.x-e.hx,e.y-e.hy)>e.leash){const a=Math.atan2(e.hy-e.y,e.hx-e.x);mvx=Math.cos(a);mvy=Math.sin(a)}
     if(mvx||mvy){e.x+=mvx*t.speed*dt;e.y+=mvy*t.speed*dt;e.wob+=dt*10}
     for(const o of G.rocks){const ox=e.x-o.x,oy=e.y-o.y,od=hyp(ox,oy),m=o.r+e.r;if(od<m&&od>0){e.x=o.x+ox/od*m;e.y=o.y+oy/od*m}}
+    if(e.t.speed)for(const o of G.huts){if(o.dead)continue;const ox=e.x-o.x,oy=e.y-o.y,od=hyp(ox,oy),m=o.r*.9+e.r;if(od<m&&od>0){e.x=o.x+ox/od*m;e.y=o.y+oy/od*m}}
     e.x=clamp(e.x,20,G.W-20);e.y=clamp(e.y,20,G.H-20);
   }
   // separation for mobile units
@@ -907,7 +908,7 @@ const META={"scout":{"L":1.0184,"W":0.5418,"H":0.5183,"pivot":[-0.075,0.02,0.272
 // key -> [model file, footprint size (max of length/width) in game units]
 const MS={scout:['scout',35],brawler:['brawler',44],heavy:['heavy',55],tank:['enemy_tank',46],leader:['leader_tank',52],flame:['flame_tank',46],atgun:['at_gun',46],
   car:['technical',34],mg:['mg_nest',40],rocket:['rocket_truck',42],battery:['battery',66],radar:['radar',50],inf:['infantry',13],at:['at_team',18],mortar:['mortar_team',15],
-  bombcar:['bomb_truck',30],medic:['repair_truck',38],bomber:['bomber',112],strafer:['strafer',66],barracks:['barracks',76],factory:['factory',94],airfield:['airfield',150],
+  bombcar:['bomb_truck',38],medic:['repair_truck',38],bomber:['bomber',112],strafer:['strafer',66],barracks:['barracks',76],factory:['factory',94],airfield:['airfield',150],
   depot:['depot',66],hq:['hq',94],hut:['hut',1],fence:['fence',26],rock:['rock',1],mine:['mine',18],scrap:['scrap',12],wreck:['enemy_tank',1]};
 const MZ={};for(const[k,[m,sz]]of Object.entries(MS)){const d=META[m],s=sz/Math.max(d.L,d.W),p=d.pivot||[0,0,0],u=d.muzzle;
   MZ[k]={s,px:p[0]*s,py:-p[1]*s,pz:p[2]*s,mx:u[0]*s,my:-u[1]*s,mz:u[2]*s,h:d.H*s,L:d.L*s,W:d.W*s}}
@@ -1074,7 +1075,7 @@ function drawGround(x0,y0,gw,gh){
     ctx.strokeStyle=MCOL[i];ctx.lineWidth=3;ctx.beginPath();ctx.arc(t.x,t.y,(t.r+10)*pr,0,PI*2);ctx.stroke()}});
   // bomb truck blast radius, repair beam
   for(const e of G.enemies){if(e.dead||!vis(e.x,e.y,100))continue;
-    if(e.type==='bombcar'){const d=hyp(P.x-e.x,P.y-e.y);if(d<300){ctx.strokeStyle=`rgba(235,70,45,${.25+.25*Math.sin(G.time*16)})`;ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.beginPath();ctx.arc(e.x,e.y,85,0,PI*2);ctx.stroke();ctx.setLineDash([])}}
+    if(e.type==='bombcar'){const d=hyp(P.x-e.x,P.y-e.y),pu=.5+.5*Math.sin(G.time*(d<300?16:7));if(e.aware){ctx.fillStyle=`rgba(235,50,30,${.22+.25*pu})`;ctx.beginPath();ctx.arc(e.x,e.y,26+6*pu,0,PI*2);ctx.fill();ctx.strokeStyle='rgba(255,70,40,.9)';ctx.lineWidth=3;ctx.stroke()}if(d<380){ctx.strokeStyle=`rgba(235,70,45,${.25+.25*Math.sin(G.time*16)})`;ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.beginPath();ctx.arc(e.x,e.y,85,0,PI*2);ctx.stroke();ctx.setLineDash([])}}
     if(e.type==='medic'&&e.heal&&!e.heal.dead){ctx.strokeStyle=`rgba(120,230,140,${.5+.3*Math.sin(G.time*20)})`;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.heal.x,e.heal.y);ctx.stroke()}
     if(e.type==='flame'){const n=gunPos(e,'flame',e.a,e.ta),nx=n.x,ny=n.y;
       if(e.ign>0){ctx.strokeStyle='rgba(255,140,50,.45)';ctx.lineWidth=2;ctx.setLineDash([6,6]);ctx.beginPath();ctx.moveTo(nx,ny);ctx.arc(nx,ny,e.t.range,e.ta-.4,e.ta+.4);ctx.closePath();ctx.stroke();ctx.setLineDash([])}
@@ -1120,6 +1121,12 @@ function drawOverlay(){
     ctx.save();ctx.translate(cx,cy);ctx.rotate(a);ctx.fillStyle=MCOL[i];ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(24,0);ctx.lineTo(12,-9);ctx.lineTo(12,9);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
     drawStar(ctx,cx,cy,13,MCOL[i])});
+  // bomb truck warnings: arrow at the screen edge while one is coming
+  for(const e of G.enemies){if(e.dead||e.type!=='bombcar'||!e.aware)continue;const d=hyp(P.x-e.x,P.y-e.y);if(d>1000)continue;const[sx,sy]=SP(e.x,e.y,0);
+    const on=sx>0&&sx<CW&&sy>0&&sy<CH,pu=.6+.4*Math.sin(G.time*14);
+    if(on){ctx.fillStyle=`rgba(255,60,35,${pu})`;ctx.font='700 13px "Chakra Petch",sans-serif';ctx.textAlign='center';ctx.fillText('BOMB',sx,sy-30);continue}
+    const cx=clamp(sx,30,CW-30),cy=clamp(sy,150,CH-40),a=Math.atan2(sy-cy,sx-cx);ctx.save();ctx.translate(cx,cy);ctx.globalAlpha=pu;ctx.fillStyle='#ff3a1a';ctx.beginPath();ctx.arc(0,0,15,0,PI*2);ctx.fill();
+    ctx.rotate(a);ctx.beginPath();ctx.moveTo(26,0);ctx.lineTo(14,-9);ctx.lineTo(14,9);ctx.closePath();ctx.fill();ctx.rotate(-a);ctx.fillStyle='#fff';ctx.font='700 16px "Chakra Petch",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',0,1);ctx.textBaseline='alphabetic';ctx.restore()}
   if(joy.on){ctx.strokeStyle='rgba(235,232,213,.35)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(joy.ox,joy.oy,60,0,PI*2);ctx.stroke();const dx=joy.x-joy.ox,dy=joy.y-joy.oy,m=Math.min(60,hyp(dx,dy)),a=Math.atan2(dy,dx);ctx.fillStyle='rgba(235,232,213,.4)';ctx.beginPath();ctx.arc(joy.ox+Math.cos(a)*m,joy.oy+Math.sin(a)*m,22,0,PI*2);ctx.fill()}
   if(P.hp/P.maxhp<.3){ctx.fillStyle=`rgba(212,60,40,${.12+.08*Math.sin(G.time*8)})`;ctx.fillRect(0,0,CW,CH)}
   if(G.hurt>0){const g=ctx.createRadialGradient(CW/2,CH/2,Math.min(CW,CH)*.3,CW/2,CH/2,Math.max(CW,CH)*.75);g.addColorStop(0,'rgba(200,30,20,0)');g.addColorStop(1,`rgba(200,30,20,${.55*G.hurt})`);ctx.fillStyle=g;ctx.fillRect(0,0,CW,CH)}
