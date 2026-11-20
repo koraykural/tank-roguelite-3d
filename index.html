@@ -1,7 +1,5 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Tank Roguelite 3D</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1a1e16"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Tank Rogue"><link rel="apple-touch-icon" href="pwa/apple-touch-icon.png"><link rel="icon" href="pwa/icon-192.png">
-<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'))</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Chakra+Petch:wght@400;500;600;700&display=swap">
 <style>
 [hidden]{display:none!important}
@@ -435,6 +433,7 @@ function renderMenu(){
   ${setOpen?`<div class="smodal" id="smodal"><div class="sbox">
     <h2>Settings</h2>
     <div class="grow"><span>Sound</span><button class="buy" data-opt="snd">${opts.snd?'On':'Off'}</button></div>
+    <div class="grow"><span>Music</span><button class="buy" data-opt="mus">${opts.mus?'On':'Off'}</button></div>
     <div class="grow"><span>Vibration</span><button class="buy" data-opt="hap">${opts.hap?'On':'Off'}</button></div>
     ${meta.dev?'':'<div class="grow"><span>Unlock all levels</span><button class="buy" id="unlockall">Unlock</button></div>'}
     <div class="grow"><span>Reset progress</span><button class="buy danger" id="resetmeta">${resetArm?'Tap to confirm':'Reset'}</button></div>
@@ -578,7 +577,7 @@ function stick(){let x=0,y=0;
 
 // ================= sound + haptics =================
 const RM=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}})();
-const opts={snd:1,hap:1};try{Object.assign(opts,JSON.parse(localStorage.getItem('tankmock-opts')||'{}'))}catch(e){}
+const opts={snd:1,hap:1,mus:1};try{Object.assign(opts,JSON.parse(localStorage.getItem('tankmock-opts')||'{}'))}catch(e){}
 function saveOpts(){try{localStorage.setItem('tankmock-opts',JSON.stringify(opts))}catch(e){}}
 const SFX=(()=>{let ac=null,out=null,nb=null,eng=null;const last={};
   function init(){try{if(!ac){const C=window.AudioContext||window.webkitAudioContext;if(!C)return;ac=new C();out=ac.createGain();out.gain.value=opts.snd?.6:0;
@@ -633,6 +632,15 @@ const HAP=(()=>{let last=0,lbl=null;const vib=typeof navigator!=='undefined'&&!!
   function tap(){try{if(!lbl){lbl=document.createElement('label');const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');lbl.style.cssText='position:fixed;left:-99px;opacity:0;pointer-events:none';lbl.append(i);document.body.append(lbl)}lbl.click()}catch(e){}}
   return(ms,gap=70)=>{if(!opts.hap)return;const t=performance.now();if(t-last<gap)return;last=t;try{if(vib)navigator.vibrate(ms);else{tap();if(Array.isArray(ms))setTimeout(tap,ms[0]+ms[1])}}catch(e){}}})();
 ['pointerdown','touchend','keydown'].forEach(t=>addEventListener(t,()=>SFX.init(),{capture:true,passive:true}));
+// Background music. Browsers only allow audio after a tap, so play() is retried each frame until it sticks.
+const BGM=new Audio();BGM.loop=true;BGM.preload='auto';let bgmWant='',bgmTry=0;
+const BATTLE_MUSIC=['b01','b02','b03','b04','b05','b06','b07','b08','b09','b10'];
+function musicSync(){const on=opts.snd&&opts.mus&&!document.hidden;
+  const want=!on?'':menu.hidden&&G?`music/${BATTLE_MUSIC[Math.max(0,ORDER.indexOf(G.L&&G.L.key||sel.level))%BATTLE_MUSIC.length]}.mp3`:'music/menu.mp3';
+  if(!want){if(!BGM.paused)BGM.pause();bgmWant='';return}
+  if(want!==bgmWant){bgmWant=want;BGM.src=want;BGM.volume=want.includes('menu')?.35:.28}
+  if(BGM.paused&&performance.now()>bgmTry){bgmTry=performance.now()+500;BGM.play().catch(()=>{})}}
+document.addEventListener('visibilitychange',musicSync);addEventListener('pointerdown',musicSync,{capture:true});
 function toggleOpt(k){opts[k]=opts[k]?0:1;saveOpts();if(k==='snd')SFX.set(opts.snd);if(k==='hap'&&opts.hap)HAP(25,0);SFX.click();updSnd()}
 function updSnd(){const b=document.querySelector('#sndbtn');if(b){b.style.textDecoration=opts.snd?'none':'line-through';b.style.opacity=opts.snd?1:.55}}
 const optBtns=()=>`<button class="buy" data-opt="snd">Sound ${opts.snd?'on':'off'}</button><button class="buy" data-opt="hap">Vibration ${opts.hap?'on':'off'}</button>`;
@@ -1197,7 +1205,7 @@ function hud(){
 
 // ================= loop =================
 let last=performance.now();
-function frame(now){const dt=Math.min(.033,(now-last)/1000);last=now;
+function frame(now){musicSync();const dt=Math.min(.033,(now-last)/1000);last=now;
   if(G&&!G.paused&&!G.over){let d2=dt;if(G.slow>0){G.slow-=dt;d2*=.3}update(d2)}else SFX.engine(false);
   draw();if(G){hud();drawMini()}
   requestAnimationFrame(frame)}
