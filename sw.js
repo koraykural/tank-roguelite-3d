@@ -1,9 +1,9 @@
 // Offline cache. Same-origin files: serve cached, refresh in background (new version shows on next launch).
 // Pinned CDN files (three@0.160.0, fonts): cache-first.
-const CACHE = 'tank3d-v1';
-const ICONS = ['ap','coax','dozer','engine','he','loader','plate','rearmg','repair','roofmortar','skirts','turret'].map(n => `icons/${n}.webp`);
+const CACHE = 'front-armor-v21';
+const ICONS = ['ap','coax','dozer','engine','he','loader','plate','rearmg','repair','roofmortar','sight','skirts','turret'].map(n => `icons/${n}.webp`);
 const PRECACHE = [
-  './', 'index.html', 'models.js', 'manifest.webmanifest', 'pwa/icon-192.png', 'pwa/icon-512.png', ...ICONS,
+  './', 'index.html', 'models.js', 'manifest.webmanifest', 'pwa/icon-192.png', 'pwa/icon-512.png', 'pwa/apple-touch-icon.png', 'pwa/favicon-64.png', ...ICONS,
   'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
   'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
   'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js',

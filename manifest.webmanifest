@@ -1,6 +1,8 @@
 {
-  "name": "Tank Roguelite 3D",
-  "short_name": "Tank Rogue",
+  "name": "Front Armor",
+  "short_name": "Front Armor",
+  "id": "./",
+  "description": "Front Armor: a 3D tank roguelite.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

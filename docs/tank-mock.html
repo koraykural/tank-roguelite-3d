@@ -1,4 +1,4 @@
-<title>Tank Roguelite Prototype</title>
+<title>Front Armor Prototype</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Chakra+Petch:wght@400;500;600;700&display=swap">
 <style>
@@ -354,7 +354,7 @@ function renderMenu(){
   if(!meta.owned[sel.tank])sel.tank='scout';
   const L=LEVELS[sel.level];
   menu.innerHTML=`<div class="wrap">
-  <div class="top"><div class="brand">Tank Roguelite<small>Prototype · briefing room</small></div><div class="opts">${optBtns()}<div class="gold" title="Gold carries over between levels">${meta.gold} gold</div></div></div>
+  <div class="top"><div class="brand">Front Armor<small>Prototype · briefing room</small></div><div class="opts">${optBtns()}<div class="gold" title="Gold carries over between levels">${meta.gold} gold</div></div></div>
 
   <section class="step"><h2><span>1</span>Next mission</h2>
   ${(()=>{const n=ORDER.indexOf(sel.level),pv=ORDER[n-1],nx=ORDER[n+1],st=meta.stars[sel.level]||0;return `<div class="card sel lvl">

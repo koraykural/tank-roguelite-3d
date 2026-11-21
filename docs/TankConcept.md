@@ -1,4 +1,4 @@
-# Tank roguelite: concept + first 5 levels
+# Front Armor: concept + first 5 levels
 
 Status: plan finalized for the prototype (2026-11-20). Numbers are still first guesses. Playable mock: `tank-mock.html`.
 
